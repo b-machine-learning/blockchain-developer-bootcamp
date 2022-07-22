@@ -1,0 +1,3 @@
+Ensure your truffle-config.js has
+
+require("@nomicfoundation/hardhat-chai-matchers");
