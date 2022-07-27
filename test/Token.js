@@ -8,7 +8,8 @@ const tokens = (n) => {
 describe('Token', () => {
   let token,
       accounts,
-      deployer 
+      deployer,
+      receiver
 
   beforeEach(async () => {
     const Token = await ethers.getContractFactory('Token')
@@ -16,6 +17,7 @@ describe('Token', () => {
 
     accounts = await ethers.getSigners()
     deployer = accounts[0]
+    receiver = accounts[1]
   })
 
   describe('Deployment', ()=> {
@@ -42,10 +44,63 @@ describe('Token', () => {
     expect(await token.totalSupply()).to.equal(totalSupply)
     })
 
-    it('Assigns total supply to the deployooor', async () => {
+    it('Assigns total supply to the deployooor', 
+      async () => {
       expect(await token.balanceOf(deployer.address)).to.equal(totalSupply)
     })
 
   })
+
+  describe('Sending Token', () => {
+    let amount, transaction, result 
+
+    describe('Success', ()=> {
+
+      beforeEach(async () => {
+        amount=tokens(100)
+        transaction = await token.connect(deployer).transfer(receiver.address, amount)
+        result = await transaction.wait()
+      })  
+
+      it('Transfers token balances', async () => {
+        //Ensure tokens were transfered (balance changed)
+        expect(await token.balanceOf(deployer.address)).to.equal(
+          tokens(999900))
+        expect(await token.balanceOf(receiver.address)).to.equal(
+          amount)
+      })
+
+      it('Emits a Transfer Event', async () => {
+        const event_Select=result.events[0]
+        //console.log(event_Select)
+        expect(event_Select.event).to.equal('Transfer')
+        const args = event_Select.args 
+        expect(args._from).to.equal(deployer.address)
+        expect(args._to).to.equal(receiver.address)
+        expect(args._value).to.equal(amount)
+      })
+    
+    })
+
+    describe('Failure', ()=> {
+      it('rejects.. insufficient balance', async () => {
+        //Transfer more tokens than available
+        const invalidAmount = tokens(1000000000)
+        await expect(token.connect(deployer).transfer(
+            receiver.address, invalidAmount)).to.be.reverted
+      })
+
+      it('rejects burning supply', async ()=> {
+        const amount = tokens(10)
+        await expect(
+          token.connect(deployer).transfer(
+            '0x0000000000000000000000000000000000000000', amount)).to.be.reverted
+      })
+    
+
+    })
+
+  })
+
 })
 
